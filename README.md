@@ -1,5 +1,6 @@
 # spore
-Spore a stochastic generative sequencer for Monome Norns something is always becoming
+Spore a stochastic generative sequencer for Monome Norns 
+something is always becoming
 
 A spore does not know what it will become. Cast into the world by wind or chance, it carries within it only potential — the quiet possibility of an organism not yet imagined.
 Spore is a sequencer built around that same mystery.
