@@ -1,5 +1,6 @@
 -- SPORE
--- stochastic generative sequencer, inspired by fungal spore propagation
+-- stochastic generative sequencer, 
+--inspired by fungal spore propagation
 
 engine.name = "PolyPerc"
 
@@ -32,7 +33,8 @@ local spores  = {}
 local myc     = {}        -- mycelium point list {x,y,b}
 local MAX_MYC = 300
 local g       = nil
-local mdev    = nil
+local mdevs   = {}        -- array per 16 connessioni MIDI
+local mdev    = nil        -- riferimento al device MIDI correntemente attivo
 local step    = 0
 local paused  = false
 local off_q   = {}
@@ -103,8 +105,17 @@ end
 local function all_off()
   for _,q in ipairs(off_q) do note_off(q.note) end
   off_q={}
-  if mdev then
-    for ch=1,16 do for n=0,127 do mdev:note_off(n,0,ch) end end
+  
+  -- Spegne le note su TUTTI i 16 dispositivi MIDI collegati
+  for d=1,16 do
+    if mdevs[d] then
+      for ch=1,16 do
+        mdevs[d]:cc(123, 0, ch) -- Send All Notes Off CC
+        for n=0,127 do 
+          mdevs[d]:note_off(n,0,ch) 
+        end 
+      end
+    end
   end
 end
 
@@ -395,19 +406,34 @@ local function init_params()
   params:add_number("midi_ch","MIDI channel",1,16,1)
   params:set_action("midi_ch",function() end)
 
-  params:add_number("midi_dev","MIDI device",1,4,1)
-  params:set_action("midi_dev",function(v)
-    mdev=midi.connect(v)
+  -- Popola la lista dei dispositivi MIDI fino a 16 slot
+  local dev_names = {}
+  for i = 1, 16 do
+    local name = "Device " .. i
+    if midi.vports and midi.vports[i] and midi.vports[i].name then
+      name = i .. ": " .. midi.vports[i].name
+    else
+      name = i .. ": Device " .. i
+    end
+    table.insert(dev_names, name)
+  end
+
+  params:add_option("midi_dev", "MIDI device", dev_names, 1)
+  params:set_action("midi_dev", function(v)
+    mdev = mdevs[v]
   end)
 end
-
-
 
 -- =========================================
 -- INIT
 -- =========================================
 function init()
   math.randomseed(os.time())
+
+  -- Inizializza i 16 dispositivi MIDI
+  for i = 1, 16 do
+    mdevs[i] = midi.connect(i)
+  end
 
   init_params()
 
@@ -420,7 +446,8 @@ function init()
   g=grid.connect()
   if g then g.key=grid_key; print("grid "..g.cols.."x"..g.rows) end
 
-  mdev=midi.connect(1)
+  -- Imposta il device attivo in base al parametro selezionato
+  mdev = mdevs[params:get("midi_dev")]
 
   burst(CX,CY,4)
 
@@ -436,7 +463,7 @@ function init()
   m_draw.event=function() redraw() end
   m_draw:start()
 
-  print("SPORE v1.5 ready")
+  print("SPORE v1.5 (16 MIDI Devices) ready")
 end
 
 function cleanup()
